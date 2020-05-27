@@ -2,7 +2,7 @@
 Aquest script es connecta a aules i recorre totes les tasques de cada curs per a mostrar quines tasques tenen entregues que encara han de ser avaluades.
 
 # instal·lació
-Es requereix Python i els següents complements:
+Es requereix Python (qualsevol versió) i els següents complements:
 * mechanize (pip install mechanize)
 * termcolor (pip install termcolor)
 * colorama (pip install colorama)
