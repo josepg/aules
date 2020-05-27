@@ -1,8 +1,15 @@
 # -*- coding: utf-8 -*-
-import cookielib, config, colorama, mechanize, re, ssl
+import colorama, config, mechanize, re, ssl, sys
 from termcolor import colored, cprint
 
+major_version = sys.version_info.major
+if major_version == 2:
+	import cookielib
+elif major_version == 3:
+	import http.cookiejar as cookielib
 colorama.init()
+
+cprint("Benvinguts a l'script de tasques d'aules. Versió 1.1. (twitter: @josep_g)", 'green', 'on_grey')
 
 #Això evita errors amb els certificats autosignats d'aules:
 try:
@@ -12,47 +19,36 @@ except AttributeError:
 else:
 	ssl._create_default_https_context = _create_unverified_https_context # Handle target environment that doesn't support HTTPS verification
 
-br = mechanize.Browser()
-cookiejar = cookielib.LWPCookieJar()
-br.set_cookiejar(cookiejar)
+br = mechanize.Browser() # Inicialitzem el navegador
+br.set_cookiejar(cookielib.LWPCookieJar()) # Assignem un contenidor per a les cookies (navegador)
+br.set_handle_robots(False) # Li indiquem a mechanize que ignore l'arxiu robots.txt que impeteix l'ús de robots.
 
-br.set_handle_equiv(True)
-br.set_handle_gzip(True)
-br.set_handle_redirect(True)
-br.set_handle_referer(True)
-br.set_handle_robots(False)
+br.open("https://aules.edu.gva.es/moodle/login/index.php") # Obrim la pàgina d'inici d'aules configurada a l'arxiu de configuració
 
-br.set_handle_refresh(mechanize._http.HTTPRefreshProcessor(), max_time = 1)
-br.addheaders = [( 'User-agent', 'Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9.0.1) Gecko/2008071615 Fedora/3.0.1-1.fc9 Firefox/3.0.1' )]
-br.open("https://aules" + config.NumAules + ".edu.gva.es/moodle/login/index.php")
-
-br.select_form(nr=1)
-br.form['username'] = config.usuariAules
-br.form['password'] = config.contrasenyaAules
-br.submit(id="loginbtn")
-
-url = br.open("https://aules" + config.NumAules + ".edu.gva.es/moodle/my/")
-returnPage = url.read()
-
-pattern = re.compile(r'(https\:\/\/aules' + config.NumAules + '.edu.gva.es\/moodle\/course\/view.php\?id=[0-9]+)">(.*)</a>')
+br.select_form(nr=1) # Seleccionem el formulari d'inici de sessió
+br.form['username'] = config.usuariAules # Escrivim el nom d'usuari en el formulari d'inici de sessió
+br.form['password'] = config.contrasenyaAules # Escrivim la contrasenya en el formulari d'inici de sessió
+response = br.submit(id="loginbtn") # Enviem el formulari d'inici de sessió
+returnPage = response.read().decode('utf-8') # Resposta del formulari, pàgina inicial amb el llistat de cursos
 
 totalTasks = 0
 
+pattern = re.compile(r'(https\:\/\/aules[0-9]?.edu.gva.es\/moodle\/course\/view.php\?id=[0-9]+)">(.*)</a>')
 for courseURL, courseName in re.findall(pattern, returnPage):
 	result = courseURL.split("id=")
 	if int(result[1]) not in config.cursosExclosos:
-		cprint(courseName.decode('utf-8'), 'grey', 'on_cyan')
-		url = br.open("https://aules" + config.NumAules + ".edu.gva.es/moodle/mod/assign/index.php?id=" + result[1])
-		returnPage = url.read()
-		pattern2 = re.compile(r'(https\:\/\/aules' + config.NumAules + '.edu.gva.es\/moodle\/mod\/assign\/view.php\?id=[0-9]+)">(.*)</a>')
+		cprint(courseName, 'grey', 'on_cyan')
+		url = br.open(courseURL.split('moodle')[0] + 'moodle/mod/assign/index.php?id=' + result[1]) # amb aquest codi ens assegurem d'acabar en l'aules (aules 2, 3, etc.) correcte
+		returnPage = url.read() if major_version == 2 else url.read().decode('utf-8')
+		pattern2 = re.compile(r'(https\:\/\/aules[0-9]?.edu.gva.es\/moodle\/mod\/assign\/view.php\?id=[0-9]+)">(.*)</a>')
 		for tascaURL, tascaName in re.findall(pattern2, returnPage):
 			url = br.open(tascaURL)
-			returnPage3 = url.read()
+			returnPage3 = url.read() if major_version == 2 else url.read().decode('utf-8')
 			pattern3 = re.compile(r'Necessiten qualificació</td>\n<td [a-zA-Z=" 1]+>([0-9]+)</td>')
 			m = re.search(pattern3, returnPage3)
 			if m:
 				myQnt = m.group(1)
 				if int(myQnt) > 0:
 					totalTasks += int(myQnt)
-					print(tascaName.decode('utf-8') + ": " + m.group(1) + ' ' + tascaURL + '&action=grader' )
+					print(" └>" + tascaName + ": " + m.group(1) + ' ' + tascaURL + '&action=grader' )
 cprint("Total de tasques per corregir: " + str(totalTasks), 'grey', 'on_green')
