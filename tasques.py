@@ -9,7 +9,7 @@ elif major_version == 3:
 	import http.cookiejar as cookielib
 colorama.init()
 
-cprint("Benvinguts a l'script de tasques d'aules. Versió 1.2. (twitter: @josep_g)", 'green', 'on_grey')
+cprint("Benvinguts a l'script de tasques d'aules. Versió 1.3. (twitter: @josep_g)", 'green', 'on_grey')
 
 #Això evita errors amb els certificats autosignats d'aules:
 try:
@@ -48,7 +48,7 @@ for courseURL, courseName in re.findall(pattern, returnPage):
 		for tascaURL, tascaName in re.findall(pattern2, returnPage):
 			url = br.open(tascaURL)
 			returnPage3 = url.read() if major_version == 2 else url.read().decode('utf-8')
-			pattern3 = re.compile(r'Necessiten qualificació</td>\n<td [a-zA-Z=" 1]+>([0-9]+)</td>')
+			pattern3 = re.compile(r'(?:Necessiten qualificació|Pendientes por calificar|Needs grading)</td>\n<td [a-zA-Z=" 1]+>([0-9]+)</td>')
 			m = re.search(pattern3, returnPage3)
 			if m:
 				myQnt = m.group(1)
